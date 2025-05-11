@@ -1,0 +1,152 @@
+// 2. UDP Chat System (Two-way)
+// Description: A two-way UDP chat that allows simultaneous sending and receiving of messages using multithreading.
+// UDPChat.java
+import java.net.*;
+import java.io.*;
+
+public class UDPChat {
+    public static void main(String[] args) throws IOException {
+        DatagramSocket socket = new DatagramSocket(Integer.parseInt(args[0]));
+        Thread receive = new Thread(() -> {
+            byte[] buf = new byte[1024];
+            DatagramPacket packet = new DatagramPacket(buf, buf.length);
+            while (true) {
+                try {
+                    socket.receive(packet);
+                    String msg = new String(packet.getData(), 0, packet.getLength());
+                    System.out.println("Friend: " + msg);
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        });
+        receive.start();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        InetAddress address = InetAddress.getByName("localhost");
+        int targetPort = Integer.parseInt(args[1]);
+        while (true) {
+            String msg = reader.readLine();
+            byte[] buf = msg.getBytes();
+            DatagramPacket packet = new DatagramPacket(buf, buf.length, address, targetPort);
+            socket.send(packet);
+        }
+    }
+}
+
+// Run in two terminals with:
+// java UDPChat 5000 5001
+// java UDPChat 5001 5000
+
+// 3. TCP File Transfer
+// Description: A TCP file server that sends a requested file to the client if it exists.
+// FileServer.java
+import java.io.*;
+import java.net.*;
+
+public class FileServer {
+    public static void main(String[] args) throws IOException {
+        ServerSocket server = new ServerSocket(1234);
+        Socket client = server.accept();
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+        String filename = in.readLine();
+        File file = new File(filename);
+
+        if (file.exists()) {
+            BufferedReader fileReader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = fileReader.readLine()) != null) {
+                out.println(line);
+            }
+            fileReader.close();
+        } else {
+            out.println("File not found");
+        }
+
+        client.close();
+        server.close();
+    }
+}
+
+// FileClient.java
+import java.io.*;
+import java.net.*;
+
+public class FileClient {
+    public static void main(String[] args) throws IOException {
+        Socket socket = new Socket("localhost", 1234);
+
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        System.out.print("Enter filename: ");
+        String filename = input.readLine();
+        out.println(filename);
+
+        String line;
+        while ((line = in.readLine()) != null) {
+            System.out.println(line);
+        }
+
+        socket.close();
+    }
+}
+
+// 4. DNS Resolution Simulation using UDP
+// Description: A basic simulation of DNS using a UDP server that maps hostnames to IP addresses.
+// DNSServer.java
+import java.net.*;
+import java.io.*;
+import java.util.*;
+
+public class DNSServer {
+    public static void main(String[] args) throws IOException {
+        DatagramSocket socket = new DatagramSocket(9999);
+        Map<String, String> dnsTable = new HashMap<>();
+        dnsTable.put("example.com", "93.184.216.34");
+        dnsTable.put("localhost", "127.0.0.1");
+
+        byte[] buffer = new byte[1024];
+        while (true) {
+            DatagramPacket request = new DatagramPacket(buffer, buffer.length);
+            socket.receive(request);
+            String hostname = new String(request.getData(), 0, request.getLength());
+            String ip = dnsTable.getOrDefault(hostname, "Not found");
+            byte[] response = ip.getBytes();
+            DatagramPacket reply = new DatagramPacket(response, response.length, request.getAddress(), request.getPort());
+            socket.send(reply);
+        }
+    }
+}
+
+// DNSClient.java
+import java.net.*;
+import java.io.*;
+
+public class DNSClient {
+    public static void main(String[] args) throws IOException {
+        DatagramSocket socket = new DatagramSocket();
+        InetAddress address = InetAddress.getByName("localhost");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        System.out.print("Enter hostname to resolve: ");
+        String hostname = reader.readLine();
+
+        byte[] buffer = hostname.getBytes();
+        DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, 9999);
+        socket.send(request);
+
+        byte[] response = new byte[1024];
+        DatagramPacket reply = new DatagramPacket(response, response.length);
+        socket.receive(reply);
+
+        String ip = new String(reply.getData(), 0, reply.getLength());
+        System.out.println("Resolved IP: " + ip);
+
+        socket.close();
+    }
+}
+
+// More experiments to be added...
